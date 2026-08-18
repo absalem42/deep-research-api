@@ -34,8 +34,13 @@ so other systems can call it.
 - **Production config guards.** With `ENVIRONMENT=production`, startup fails if
   `API_KEYS` is empty, `AUTH_DISABLED` is true, `CORS_ORIGINS` contains `*`, or
   `WEBHOOK_SECRET` is missing.
-- **85 tests**, covering auth, config guards, providers, the job lifecycle, and
-  multi-replica Redis behaviour. No API keys or network required.
+- **Per-job usage accounting.** `usage` reports input/output tokens, tool calls
+  and searches, so an embedding platform can bill or budget a run. Raw counts
+  rather than a price: published rates change, and a stale hardcoded number is
+  worse than none.
+- **89 tests**, covering auth, config guards, providers, the job lifecycle,
+  usage accounting, and multi-replica Redis behaviour. No API keys or network
+  required.
 
 ### Fixed
 
@@ -72,4 +77,4 @@ Three defects in the upstream code this project vendors, all marked
 - A job in flight when its own replica dies is lost. Retry from the client using
   `idempotency_key`.
 
-[1.0.0]: https://github.com/OWNER/REPO/releases/tag/v1.0.0
+[1.0.0]: https://github.com/absalem42/deep-research-api/releases/tag/v1.0.0

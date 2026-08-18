@@ -1,19 +1,18 @@
 # Deep Research API
 
-[![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/ci.yml)
+[![CI](https://github.com/absalem42/deep-research-api/actions/workflows/ci.yml/badge.svg)](https://github.com/absalem42/deep-research-api/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 
-A production deep-research agent service. Ask a question, get a cited markdown
-report produced by a supervisor agent that decomposes the work across parallel
-researchers.
+**Add ChatGPT-style deep research to your agent or your product.**
+
+Ask a question, get back a cited markdown report — researched by a supervisor
+agent that breaks the question into sub-tasks, runs researchers in parallel, and
+synthesises the findings. Self-hosted, so the reports and the bill are yours.
 
 Built on [LangChain's open_deep_research](https://github.com/langchain-ai/open_deep_research)
-graph, with the architecture from
-[Sean Chen's walkthrough](https://www.youtube.com/watch?v=dw9Vkig47S0)
-([backend](https://github.com/ShenSeanChen/launch-DeepResearch-Backend) /
-[frontend](https://github.com/ShenSeanChen/launch-DeepResearch-Frontend)) —
-rebuilt around a job model so other systems can actually call it.
+graph and the architecture from [Sean Chen's walkthrough](https://www.youtube.com/watch?v=dw9Vkig47S0),
+rebuilt around a job model so other systems can call it. Full credit in [NOTICE](NOTICE).
 
 ```
 query → Clarifier → Research Brief → Supervisor ─┬→ Researcher ─┐
@@ -21,7 +20,62 @@ query → Clarifier → Research Brief → Supervisor ─┬→ Researcher ─�
                                                   └→ Researcher ─┘
 ```
 
-## Why this exists
+## Who this is for
+
+### You are building an agent
+
+Give it research as a native capability. Point any MCP client at it — Claude
+Code, Claude Desktop, Cursor, or your own framework:
+
+```bash
+claude mcp add deep-research -- python -m mcp_server.server
+```
+
+Your agent gets `deep_research`, `deep_research_start`,
+`deep_research_status` and `deep_research_providers`. Or call the API from any
+framework, in three lines:
+
+```python
+from deepresearch import DeepResearchClient
+
+client = DeepResearchClient("https://research.example.com", api_key="drk_...")
+print(client.research("Compare vector databases for a 10M-doc corpus").report_markdown)
+```
+
+### You run a product and want a research feature
+
+Deep research as a backend service your app calls. Submit a job, get a webhook
+when the report is ready — no held-open connections, no long-running requests in
+your own stack:
+
+```bash
+curl -X POST https://research.example.com/v1/research   -H "Authorization: Bearer $KEY"   -d '{"query": "...", "callback_url": "https://you.example.com/hooks/research",
+       "metadata": {"user_id": "u_123"}}'
+```
+
+`metadata` comes back on the webhook, so you can attribute a run to the end user
+who asked for it. `usage` reports input/output tokens per job, so you can bill or
+budget it. `idempotency_key` makes retries free instead of double-charging.
+
+For a live progress UI, stream `GET /v1/research/{id}/events` — that is what the
+included Next.js frontend does, and you can lift its `useResearch` hook straight
+into your own app.
+
+### What you need to run it
+
+One provider key (Anthropic, OpenAI, OpenRouter, Moonshot, Groq, Gemini or
+DeepSeek), optionally a Tavily key for search, and Docker:
+
+```bash
+git clone https://github.com/absalem42/deep-research-api
+cd deep-research-api && cp .env.example backend/.env   # add one provider key
+docker compose up --build
+```
+
+Your users never need an API key of their own — the credentials stay on your
+server.
+
+## How it differs from the tutorial it builds on
 
 The reference implementation is a great teaching repo, but it is not something
 you can put behind a domain. Concretely, what changed:
@@ -36,7 +90,7 @@ you can put behind a domain. Concretely, what changed:
 | SSE only; a dropped connection loses the run | Job model: poll, stream, or signed webhook |
 | Metrics fall back to in-memory silently | Documented; retention + eviction are explicit |
 | Container runs as root, deps reinstalled on every code edit | Non-root, multi-stage, cached dependency layer |
-| No tests around the API surface | 85 tests covering auth, config guards, providers, jobs, multi-replica Redis |
+| No tests around the API surface | 89 tests covering auth, config guards, providers, jobs, usage, multi-replica Redis |
 | 3 hardcoded providers | Data-driven registry: Anthropic, OpenAI, Moonshot, OpenRouter, Groq, Gemini, DeepSeek |
 
 ## Quick start
@@ -160,7 +214,7 @@ for event in client.stream(client.start("...")):   # or watch it live
 ```
 
 ```typescript
-import { DeepResearchClient } from "@yourorg/deep-research";
+import { DeepResearchClient } from "@absalem42/deep-research";
 
 const client = new DeepResearchClient({ baseUrl, apiKey });
 const job = await client.research("...");
@@ -220,7 +274,7 @@ python -c "import secrets; print('whsec_'+secrets.token_urlsafe(32))" # webhook 
 cd backend && .venv/Scripts/python -m pytest
 ```
 
-Tests stub the graph, so they are fast and need no API keys or network. 85 tests.
+Tests stub the graph, so they are fast and need no API keys or network. 89 tests.
 
 ## Deploying
 
@@ -300,7 +354,7 @@ backend/
   tests/
 clients/
   python/           deepresearch
-  typescript/       @yourorg/deep-research
+  typescript/       @absalem42/deep-research
 ```
 
 Vendor patches are all marked `PATCH(deep-research)` so a future upstream bump

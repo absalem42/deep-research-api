@@ -300,6 +300,16 @@ class DeepResearchEngine:
         for message in payload.get("messages", []) or []:
             content = getattr(message, "content", None)
             calls = getattr(message, "tool_calls", None) or []
+
+            # Token accounting. Every provider langchain supports reports this
+            # on AIMessage, so cost is answerable without a provider-specific
+            # branch. Callers embedding this need it to bill or budget a run;
+            # deliberately raw counts rather than a price, since published
+            # rates change and a stale hardcoded number is worse than none.
+            if usage_metadata := getattr(message, "usage_metadata", None):
+                result.usage.input_tokens += usage_metadata.get("input_tokens", 0) or 0
+                result.usage.output_tokens += usage_metadata.get("output_tokens", 0) or 0
+
             for call in calls:
                 name = call.get("name") if isinstance(call, dict) else None
                 if name:
