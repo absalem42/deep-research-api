@@ -1,0 +1,66 @@
+services:
+  api:
+    build:
+      context: ./backend
+    ports:
+      - "8080:8080"
+    env_file:
+      - ./backend/.env
+    environment:
+      PORT: 8080
+      # Uncomment both lines (and the redis service below) to share job state
+      # across replicas. Startup PINGs Redis, so a wrong URL fails the deploy
+      # rather than producing a service that breaks on first use.
+      # JOB_BACKEND: redis
+      # REDIS_URL: redis://redis:6379/0
+    # depends_on:
+    #   redis:
+    #     condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/health', timeout=4).status==200 else 1)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+    # Research runs are memory-hungry when several run in parallel; cap them so
+    # one busy container cannot take the host down.
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  # Shared job state for multi-replica deployments. Uncomment with the two
+  # JOB_BACKEND/REDIS_URL lines above.
+  # redis:
+  #   image: redis:7-alpine
+  #   # Jobs carry their own TTL, so persistence is optional; appendonly keeps
+  #   # in-flight state across a redis restart.
+  #   command: redis-server --appendonly yes
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 10s
+  #     timeout: 3s
+  #     retries: 5
+  #   volumes:
+  #     - redis-data:/data
+  #   restart: unless-stopped
+
+  # Optional UI. Point it at the API above.
+  # web:
+  #   build:
+  #     context: ./frontend
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     NEXT_PUBLIC_API_URL: http://localhost:8080
+  #   depends_on:
+  #     api:
+  #       condition: service_healthy
+
+# volumes:
+#   redis-data:

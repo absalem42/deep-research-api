@@ -1,0 +1,70 @@
+Deep Research API
+Copyright (c) 2026 Abdullah
+
+This product includes software developed by third parties, listed below. All
+upstream components are MIT licensed, and their copyright notices are retained
+as that license requires.
+
+================================================================================
+1. LangChain open_deep_research
+================================================================================
+
+The multi-agent research graph in `backend/vendor/open_deep_research/` is
+derived from:
+
+    https://github.com/langchain-ai/open_deep_research
+    Copyright (c) 2025 LangChain, Inc.
+    MIT License (full text: backend/vendor/open_deep_research/LICENSE)
+
+Modifications by this project are marked in-source with `PATCH(deep-research)`
+comments. They are:
+
+  a) configuration.py -- added `model_base_url` and `tavily_api_key` fields so
+     the endpoint and search credential travel in the per-request config.
+
+  b) deep_researcher.py -- added `base_url` to the `configurable_fields` of the
+     shared model and to all six per-node model configs. Upstream relied on a
+     process-global `os.environ["ANTHROPIC_BASE_URL"]` write, which raced across
+     concurrent requests using different providers.
+
+  c) utils.py -- replaced a call to `get_api_key_for_model()` with
+     `configurable.user_api_key`. The function's only definition is commented
+     out upstream, so the call raised `NameError` whenever a Tavily search
+     triggered summarisation.
+
+  d) utils.py -- `get_tavily_api_key()` now prefers the per-request config over
+     the ambient environment.
+
+================================================================================
+2. launch-DeepResearch-Backend / launch-DeepResearch-Frontend
+================================================================================
+
+The system design, the FastAPI/Next.js split, and the frontend components this
+project adapts come from Sean Chen's open-source companion repos:
+
+    https://github.com/ShenSeanChen/launch-DeepResearch-Backend
+    https://github.com/ShenSeanChen/launch-DeepResearch-Frontend
+    Copyright (c) 2024 ShenSeanChen
+    MIT License
+
+    Accompanying walkthrough: https://www.youtube.com/watch?v=dw9Vkig47S0
+
+Files adapted from those repos:
+
+  - frontend/components/ResearchInterface.tsx  (rewritten data layer, UI retained)
+  - frontend/components/ModelComparison.tsx    (rewritten against the job API)
+  - frontend/contexts/ResearchContext.tsx      (credential storage removed)
+  - frontend/app/page.tsx, layout.tsx, globals.css, components/ui/, public/
+  - frontend/lib/googleDocs.ts, lib/utils.ts   (unmodified)
+
+Everything else -- the job engine, provider registry, auth, webhooks, Redis
+backend, MCP server, client SDKs and test suite -- is original to this project.
+
+================================================================================
+3. Runtime dependencies
+================================================================================
+
+Python and npm dependencies retain their own licenses; see
+`backend/requirements.txt`, `frontend/package.json`, and
+`clients/typescript/package.json`. Notable: FastAPI (MIT), LangGraph (MIT),
+LangChain (MIT), Next.js (MIT), React (MIT), Redis-py (MIT).

@@ -1,0 +1,62 @@
+name: Bug report
+description: Something behaves differently than documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "Please redact API keys from any logs you paste."
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you expected, and what you got instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. POST /v1/research with ...
+        2. Poll the job
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Provider
+      options:
+        - anthropic
+        - openai
+        - moonshot (kimi)
+        - openrouter
+        - groq
+        - google
+        - deepseek
+        - not provider-specific
+    validations:
+      required: true
+
+  - type: dropdown
+    id: job-backend
+    attributes:
+      label: JOB_BACKEND
+      options: [memory, redis]
+    validations:
+      required: true
+
+  - type: input
+    id: request-id
+    attributes:
+      label: X-Request-Id
+      description: From the response header, if you have it. Makes logs findable.
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      render: shell

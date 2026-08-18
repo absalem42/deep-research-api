@@ -1,0 +1,22 @@
+# Normalise to LF in the repository. Without this, contributors on Windows
+# commit CRLF and every shared file shows up as fully rewritten in diffs.
+* text=auto eol=lf
+
+# Shell scripts and Dockerfiles break outright with CRLF inside a container.
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.py text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+
+# Binary: never touch, never diff.
+*.png binary
+*.jpg binary
+*.ico binary
+*.svg text eol=lf
+
+# Keep lockfiles out of diff review and out of language stats.
+package-lock.json linguist-generated=true -diff
+
+# Vendored upstream code should not count toward this repo's language stats.
+backend/vendor/** linguist-vendored=true

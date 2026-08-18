@@ -1,0 +1,19 @@
+target-version = "py311"
+line-length = 100
+
+exclude = ["vendor", ".venv"]   # vendored upstream code is not ours to restyle
+
+[lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM"]
+ignore = [
+    "E501",   # line length is handled by the formatter, not a hard error
+    "B008",   # FastAPI's Depends() in defaults is the documented idiom
+    "UP042",  # see note at the bottom of this file
+]
+
+[lint.per-file-ignores]
+"tests/*" = ["B011"]
+
+# UP042 suggests StrEnum (3.11+). Kept as `(str, Enum)` deliberately: StrEnum
+# changes f-string rendering from "JobStatus.QUEUED" to "queued", and these
+# values cross the API boundary. Not worth a silent wire-format change.

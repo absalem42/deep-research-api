@@ -1,0 +1,32 @@
+# secrets
+.env
+.env.*
+!.env.example
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# node
+node_modules/
+.next/
+out/
+clients/typescript/dist/
+*.tsbuildinfo
+
+# next generates this on build; regenerated locally, not worth versioning
+next-env.d.ts
+
+# logs -- the reference repo committed server.log
+*.log
+
+# os
+.DS_Store
+Thumbs.db

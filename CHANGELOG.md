@@ -1,0 +1,75 @@
+# Changelog
+
+All notable changes to this project are documented here. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
+adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.0.0] - 2026-08-18
+
+First release. A production deep-research agent service built around a job model
+so other systems can call it.
+
+### Added
+
+- **Async job API.** `POST /v1/research` returns `202` with a job id; track by
+  polling, the SSE stream, or a signed webhook. A run takes 30-120s, which is
+  too long to hold a request open.
+- **Signed webhooks.** HMAC-SHA256 over `"<timestamp>.<body>"`, with the
+  timestamp inside the signed material so a captured body cannot be replayed.
+  Exponential backoff on 5xx/429/network; no retry on 4xx.
+- **Authentication.** Bearer / `X-API-Key` with constant-time comparison and
+  multiple independently revocable caller keys.
+- **Provider-agnostic registry.** Anthropic, OpenAI, Moonshot (Kimi),
+  OpenRouter, Groq, Google, DeepSeek. Adding one is a `ProviderSpec` entry.
+- **Redis job backend.** `JOB_BACKEND=redis` shares job records, event backlog
+  and idempotency claims across replicas; events fan out over pub/sub so any
+  replica can stream any job. In-memory remains the default.
+- **MCP server.** Exposes research as native agent tools over stdio.
+- **Client SDKs.** Python (sync + async) and TypeScript, both with webhook
+  verification helpers.
+- **Next.js frontend.** Live SSE progress, model comparison, Google Docs export,
+  and a server-side proxy so the browser never holds a key.
+- **Idempotency keys.** Replaying a key returns the original job instead of
+  paying for the research twice.
+- **Production config guards.** With `ENVIRONMENT=production`, startup fails if
+  `API_KEYS` is empty, `AUTH_DISABLED` is true, `CORS_ORIGINS` contains `*`, or
+  `WEBHOOK_SECRET` is missing.
+- **85 tests**, covering auth, config guards, providers, the job lifecycle, and
+  multi-replica Redis behaviour. No API keys or network required.
+
+### Fixed
+
+Three defects in the upstream code this project vendors, all marked
+`PATCH(deep-research)` and described in [NOTICE](NOTICE):
+
+- **Every request routed to OpenAI regardless of the selected provider.** The
+  four `*_model_provider` fields default to `"openai"` and are passed explicitly
+  into `.with_config()`, overriding the `"<provider>:"` prefix on the model
+  string. Surfaced only by running a live request and reading the 401 body.
+- **`NameError` on the Tavily search path.** `get_api_key_for_model()` was
+  called in `utils.py` but its only definition is commented out. Invisible when
+  running provider-native search, fatal the moment you switch to Tavily.
+- **Cross-request endpoint race.** `os.environ["ANTHROPIC_BASE_URL"]` was
+  written per request, so two concurrent requests on different providers
+  clobbered each other. The endpoint now travels in the per-request config.
+
+### Security
+
+- Provider credentials are server-side only. The reference implementation
+  accepted the caller's LLM key in the request body and stored provider keys in
+  browser `localStorage`; both are removed. If migrating from it, rotate those
+  keys.
+- `allow_origins=["*"]` with `allow_credentials=True` replaced by an explicit
+  origin list, with the wildcard rejected outright in production.
+- Container runs as a non-root user.
+
+### Known limitations
+
+- The Redis backend is covered by tests against `fakeredis`; it has not yet been
+  exercised against a live Redis server.
+- Job state is per-process with `JOB_BACKEND=memory` (the default): a restart
+  loses in-flight jobs. Use `redis` for multi-replica deployments.
+- A job in flight when its own replica dies is lost. Retry from the client using
+  `idempotency_key`.
+
+[1.0.0]: https://github.com/OWNER/REPO/releases/tag/v1.0.0
