@@ -385,6 +385,11 @@ channel head is de-duplicated by the monotonic `sequence` on each event.
 Startup calls `PING`, so a bad `REDIS_URL` fails the deploy in ~2s instead of
 producing a service that looks healthy and breaks on the first request.
 
+All of the above is verified against a **real Redis server** in CI
+(`redis:7-alpine`), not only against fakeredis — including the cross-replica
+pub/sub path, since delivery timing and TTL semantics are where a
+reimplementation is most likely to differ.
+
 Still true either way: **one uvicorn worker per container.** Scale by adding
 containers. A job that is mid-flight when its own replica dies is lost — retry
 from the client using `idempotency_key`.

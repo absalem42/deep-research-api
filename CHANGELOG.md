@@ -4,6 +4,21 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-08-18
+
+### Changed
+
+- **The Redis backend is now verified against a real server.** CI runs the same
+  28 tests against `redis:7-alpine` in a service container, alongside the
+  fakeredis run. Every release until now carried the caveat that this backend
+  had only ever been exercised against a reimplementation -- pipelines, pub/sub
+  delivery timing and TTL semantics are exactly where fakeredis can diverge, and
+  exactly what this backend leans on.
+
+  The suite picks its client from `TEST_REDIS_URL`, so the same tests cover both.
+  The job runs with `-s` so the `redis backend: REAL ...` line appears in the
+  log: a green run should never leave you guessing which backend it exercised.
+
 ## [1.1.0] - 2026-08-18
 
 ### Added
@@ -139,12 +154,14 @@ Three defects in the upstream code this project vendors, all marked
 ### Known limitations
 
 - The Redis backend is covered by tests against `fakeredis`; it has not yet been
-  exercised against a live Redis server.
+  exercised against a live Redis server. *(Resolved in 1.1.1 — CI now runs the
+  same suite against `redis:7-alpine`.)*
 - Job state is per-process with `JOB_BACKEND=memory` (the default): a restart
   loses in-flight jobs. Use `redis` for multi-replica deployments.
 - A job in flight when its own replica dies is lost. Retry from the client using
   `idempotency_key`.
 
+[1.1.1]: https://github.com/absalem42/deep-research-api/releases/tag/v1.1.1
 [1.1.0]: https://github.com/absalem42/deep-research-api/releases/tag/v1.1.0
 [1.0.1]: https://github.com/absalem42/deep-research-api/releases/tag/v1.0.1
 [1.0.0]: https://github.com/absalem42/deep-research-api/releases/tag/v1.0.0
