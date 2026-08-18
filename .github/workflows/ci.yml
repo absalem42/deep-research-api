@@ -100,7 +100,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       # Build only -- no registry push, so this needs no secrets and works on
       # pull requests from forks.
