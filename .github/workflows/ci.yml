@@ -104,7 +104,7 @@ jobs:
 
       # Build only -- no registry push, so this needs no secrets and works on
       # pull requests from forks.
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: ./backend
           push: false
