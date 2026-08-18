@@ -73,6 +73,16 @@ async def list_tools() -> list[Tool]:
                         "minimum": 1,
                         "maximum": 10,
                     },
+                    "context_job_ids": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "maxItems": 5,
+                        "description": (
+                            "Ids of earlier deep_research runs to build on. Use this "
+                            "for follow-up questions instead of repeating the earlier "
+                            "findings in the query -- the service already has them."
+                        ),
+                    },
                 },
                 "required": ["query"],
             },
@@ -136,6 +146,13 @@ def _render(job: dict[str, Any]) -> str:
                 for i, s in enumerate(sources, 1)
             )
         usage = result.get("usage") or {}
+        # An agent cannot otherwise tell a partial report from a complete one,
+        # and will happily present a truncated one as the final answer.
+        if result.get("truncated"):
+            parts.append(
+                "\n\n> **Note:** this run hit the model's context limit, so the "
+                "report is based on partial findings."
+            )
         parts.append(
             f"\n\n---\n*{job.get('provider')}/{job.get('model')} · "
             f"{job.get('duration_seconds')}s · {usage.get('searches', 0)} searches "
@@ -172,13 +189,14 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
                 return [TextContent(type="text", text=_render(response.json()))]
 
             if name in ("deep_research", "deep_research_start"):
-                response = await client.post(
-                    f"{BASE_URL}/v1/research",
-                    json={
-                        "query": arguments["query"],
-                        "options": _options(arguments),
-                    },
-                )
+                body: dict[str, Any] = {
+                    "query": arguments["query"],
+                    "options": _options(arguments),
+                }
+                if context := arguments.get("context_job_ids"):
+                    body["context_job_ids"] = context
+
+                response = await client.post(f"{BASE_URL}/v1/research", json=body)
                 response.raise_for_status()
                 job_id = response.json()["id"]
 

@@ -10,7 +10,7 @@ from fastapi.responses import StreamingResponse
 
 from . import __version__
 from .config import Settings, get_settings
-from .jobs import JobManager, JobNotFound
+from .jobs import ContextJobUnusable, JobManager, JobNotFound
 from .providers import (
     PROVIDERS,
     ProviderNotConfiguredError,
@@ -113,6 +113,10 @@ async def create_research(
     Returns 202 immediately -- a run takes 30-120s, far too long to hold a
     request open. Track it by polling `poll_url`, streaming `events_url`, or
     supplying `callback_url` for a signed webhook.
+
+    For a follow-up, pass `context_job_ids` with the ids of earlier runs. Their
+    reports are loaded from the store and given to this run as prior context, so
+    you do not resend them.
     """
     try:
         job = await jobs.submit(payload)
@@ -120,6 +124,10 @@ async def create_research(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
     except ProviderNotConfiguredError as exc:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from exc
+    except ContextJobUnusable as exc:
+        # 422, not 404: the request is well-formed but references work that
+        # cannot serve as context.
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
 
     if payload.callback_url and not settings.webhook_secret:
         raise HTTPException(

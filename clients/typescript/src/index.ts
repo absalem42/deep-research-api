@@ -31,12 +31,23 @@ export interface Usage {
   searches: number;
 }
 
+export interface ContextRef {
+  job_id: string;
+  query: string;
+  characters_used: number;
+  truncated: boolean;
+}
+
 export interface ResearchResult {
   report_markdown: string;
   research_brief?: string | null;
   sources: Source[];
   stage_timings: Array<{ stage: string; seconds: number }>;
   usage: Usage;
+  /** True when the run hit the context limit; the report is partial. */
+  truncated: boolean;
+  /** Prior jobs fed in via contextJobIds. */
+  context_used: ContextRef[];
 }
 
 export interface Job {
@@ -65,6 +76,11 @@ export interface StartOptions extends ResearchOptions {
   callbackUrl?: string;
   metadata?: Record<string, unknown>;
   idempotencyKey?: string;
+  /**
+   * Ids of earlier jobs whose reports become prior context for this run.
+   * The service loads them from its own store, so reports are never resent.
+   */
+  contextJobIds?: string[];
 }
 
 export interface ResearchEvent {
@@ -161,6 +177,7 @@ export class DeepResearchClient {
     if (options.callbackUrl) payload.callback_url = options.callbackUrl;
     if (options.metadata) payload.metadata = options.metadata;
     if (options.idempotencyKey) payload.idempotency_key = options.idempotencyKey;
+    if (options.contextJobIds?.length) payload.context_job_ids = options.contextJobIds;
 
     const accepted = await this.request<{ id: string }>("POST", "/v1/research", payload);
     return accepted.id;
@@ -199,6 +216,21 @@ export class DeepResearchClient {
   async research(query: string, options: StartOptions & { maxWaitMs?: number } = {}): Promise<Job> {
     const jobId = await this.start(query, options);
     return this.wait(jobId, { maxWaitMs: options.maxWaitMs });
+  }
+
+  /**
+   * Ask a follow-up that builds on an earlier run.
+   *
+   *   const first = await client.research("compare vector databases");
+   *   const more = await client.followUp(first, "expand on the pricing section");
+   */
+  async followUp(
+    previous: Job | string,
+    query: string,
+    options: StartOptions & { maxWaitMs?: number } = {},
+  ): Promise<Job> {
+    const jobId = typeof previous === "string" ? previous : previous.id;
+    return this.research(query, { ...options, contextJobIds: [jobId] });
   }
 
   /** Async-iterate the SSE stream: `for await (const e of client.stream(id))`. */

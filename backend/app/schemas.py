@@ -108,6 +108,16 @@ class ResearchRequest(BaseModel):
         max_length=255,
         description="Replaying the same key returns the original job instead of a new one.",
     )
+    context_job_ids: list[str] = Field(
+        default_factory=list,
+        max_length=5,
+        description=(
+            "Ids of earlier jobs whose reports should be given to this run as "
+            "prior context, for follow-up questions. The service loads them from "
+            "its own store, so you do not resend the reports. Explicit by design: "
+            "you choose what carries over rather than the service guessing."
+        ),
+    )
 
     @field_validator("query")
     @classmethod
@@ -149,6 +159,15 @@ class Usage(BaseModel):
     searches: int = 0
 
 
+class ContextRef(BaseModel):
+    """A prior job actually used as context, and how much of it was included."""
+
+    job_id: str
+    query: str
+    characters_used: int
+    truncated: bool = False
+
+
 class ResearchResult(BaseModel):
     report_markdown: str = ""
     truncated: bool = Field(
@@ -163,6 +182,10 @@ class ResearchResult(BaseModel):
     sources: list[Source] = Field(default_factory=list)
     stage_timings: list[StageTiming] = Field(default_factory=list)
     usage: Usage = Field(default_factory=Usage)
+    context_used: list[ContextRef] = Field(
+        default_factory=list,
+        description="Prior jobs fed into this run via context_job_ids.",
+    )
 
 
 class ResearchError(BaseModel):

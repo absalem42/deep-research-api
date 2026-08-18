@@ -44,6 +44,10 @@ class JobNotFound(KeyError):
     pass
 
 
+class ContextJobUnusable(ValueError):
+    """A referenced context job is missing, unfinished, or has no report."""
+
+
 class JobManager:
     def __init__(
         self,
@@ -71,8 +75,35 @@ class JobManager:
 
     # -- lifecycle ------------------------------------------------------
 
+    async def resolve_context(
+        self, job_ids: list[str]
+    ) -> list[tuple[str, str, str]]:
+        """Load prior reports for a follow-up.
+
+        Validated up front and rejected loudly: silently ignoring a bad id would
+        run the research without the context the caller asked for and charge them
+        for a report that answers a different question.
+        """
+        resolved: list[tuple[str, str, str]] = []
+        for job_id in job_ids:
+            prior = await self.store.get(job_id)
+            if prior is None:
+                raise ContextJobUnusable(f"Context job {job_id!r} not found or expired.")
+            if prior.status is not JobStatus.SUCCEEDED:
+                raise ContextJobUnusable(
+                    f"Context job {job_id!r} is {prior.status.value}; only succeeded jobs can be used as context."
+                )
+            report = (prior.result.report_markdown if prior.result else "") or ""
+            if not report.strip():
+                raise ContextJobUnusable(f"Context job {job_id!r} has an empty report.")
+            resolved.append((prior.id, prior.query, report))
+        return resolved
+
     async def submit(self, request: ResearchRequest) -> Job:
         spec, model, _ = self.engine.resolve(request.options)
+        # Fail before creating a job, so a bad reference does not leave a
+        # failed job behind for the caller to clean up.
+        prior_context = await self.resolve_context(request.context_job_ids)
         now = utcnow()
         job = Job(
             id=f"job_{uuid.uuid4().hex[:24]}",
@@ -99,7 +130,9 @@ class JobManager:
         if isinstance(self.bus, RedisEventBus):
             self.bus.register_cancel_hook(job.id, self._cancels[job.id])
 
-        self._tasks[job.id] = asyncio.create_task(self._run(job.id, request.options))
+        self._tasks[job.id] = asyncio.create_task(
+            self._run(job.id, request.options, prior_context)
+        )
         return job
 
     async def get(self, job_id: str) -> Job:
@@ -122,7 +155,12 @@ class JobManager:
             await self.bus.broadcast_cancel(job_id)  # owned by another replica
         return job
 
-    async def _run(self, job_id: str, options: ResearchOptions) -> None:
+    async def _run(
+        self,
+        job_id: str,
+        options: ResearchOptions,
+        prior_context: list[tuple[str, str, str]] | None = None,
+    ) -> None:
         async with self._sem:
             job = await self.get(job_id)
             cancel = self._cancels[job_id]
@@ -135,7 +173,7 @@ class JobManager:
 
             try:
                 async for event, result in self.engine.stream(
-                    job.query, options, job_id, cancel
+                    job.query, options, job_id, cancel, prior_context
                 ):
                     await self.bus.publish(job_id, event)
                     if result is not None:

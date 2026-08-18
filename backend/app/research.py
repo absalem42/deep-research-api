@@ -24,6 +24,7 @@ from .providers import (
     resolve_search_api,
 )
 from .schemas import (
+    ContextRef,
     Event,
     EventType,
     ResearchOptions,
@@ -154,18 +155,60 @@ class DeepResearchEngine:
 
     # -- execution ------------------------------------------------------
 
+    def build_messages(
+        self,
+        query: str,
+        prior: list[tuple[str, str, str]] | None,
+        result: ResearchResult,
+    ):
+        """Turn prior reports into conversation history, then the new question.
+
+        The brief-writer already renders message history with
+        `get_buffer_string(messages)`, so prior work expressed as Human/AI turns
+        is understood without touching a prompt. Oldest context is dropped first
+        when the budget runs out -- recent work is more likely relevant, and
+        prior context competes with live findings for the same window.
+        """
+        from langchain_core.messages import AIMessage, HumanMessage
+
+        messages = []
+        budget = self.settings.max_context_characters
+
+        for prior_job_id, prior_query, report in reversed(prior or []):
+            if budget <= 0:
+                break
+            excerpt = report[:budget]
+            truncated = len(excerpt) < len(report)
+            budget -= len(excerpt)
+
+            messages[0:0] = [
+                HumanMessage(content=prior_query),
+                AIMessage(content=excerpt),
+            ]
+            result.context_used.insert(
+                0,
+                ContextRef(
+                    job_id=prior_job_id,
+                    query=prior_query,
+                    characters_used=len(excerpt),
+                    truncated=truncated,
+                ),
+            )
+
+        messages.append(HumanMessage(content=query))
+        return messages
+
     async def stream(
         self,
         query: str,
         options: ResearchOptions,
         job_id: str,
         cancel_event: asyncio.Event | None = None,
+        prior_context: list[tuple[str, str, str]] | None = None,
     ) -> AsyncGenerator[tuple[Event, ResearchResult | None], None]:
         """Yield `(event, result_or_None)`; the final tuple carries the result."""
         # imported lazily so that importing this module (tests, CLI, MCP schema
         # dumps) does not pull in the whole LangChain stack
-        from langchain_core.messages import HumanMessage
-
         _ensure_vendor_on_path()
         from open_deep_research.deep_researcher import deep_researcher
         from open_deep_research.state import AgentInputState
@@ -207,11 +250,12 @@ class DeepResearchEngine:
                 "model": model,
                 "search_api": search_api,
                 "timeout_seconds": timeout,
+                "context_jobs": [c.job_id for c in result.context_used],
             },
         ), None
 
         stream = deep_researcher.astream(
-            AgentInputState(messages=[HumanMessage(content=query)]),
+            AgentInputState(messages=self.build_messages(query, prior_context, result)),
             config=config,
             stream_mode="updates",
         )

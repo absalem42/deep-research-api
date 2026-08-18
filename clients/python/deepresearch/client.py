@@ -138,8 +138,14 @@ class DeepResearchClient:
         callback_url: str | None = None,
         metadata: dict[str, Any] | None = None,
         idempotency_key: str | None = None,
+        context_job_ids: list[str] | None = None,
     ) -> str:
-        """Submit a job and return its id without waiting."""
+        """Submit a job and return its id without waiting.
+
+        `context_job_ids` names earlier jobs whose reports should be given to
+        this run as prior context -- the service loads them from its own store,
+        so you never resend a report.
+        """
         payload: dict[str, Any] = {
             "query": query,
             "options": _options(
@@ -155,6 +161,8 @@ class DeepResearchClient:
             payload["metadata"] = metadata
         if idempotency_key:
             payload["idempotency_key"] = idempotency_key
+        if context_job_ids:
+            payload["context_job_ids"] = context_job_ids
         return self._request("POST", "/v1/research", json=payload)["id"]
 
     def get(self, job_id: str) -> Job:
@@ -193,6 +201,17 @@ class DeepResearchClient:
     def research(self, query: str, *, max_wait: float = 900.0, **kwargs: Any) -> Job:
         """Submit and block until the report is ready."""
         return self.wait(self.start(query, **kwargs), max_wait=max_wait)
+
+    def follow_up(
+        self, previous: Job | str, query: str, *, max_wait: float = 900.0, **kwargs: Any
+    ) -> Job:
+        """Ask a follow-up that builds on an earlier run.
+
+            report = client.research("compare vector databases")
+            more = client.follow_up(report, "expand on the pricing section")
+        """
+        job_id = previous.id if isinstance(previous, Job) else previous
+        return self.research(query, max_wait=max_wait, context_job_ids=[job_id], **kwargs)
 
     def stream(self, job_id: str) -> Iterator[dict[str, Any]]:
         """Yield SSE events as dicts until the job finishes."""

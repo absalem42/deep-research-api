@@ -4,6 +4,46 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-08-18
+
+### Added
+
+- **Follow-up questions.** `context_job_ids` on a request names earlier runs
+  whose reports become prior context. The service loads them from its own store,
+  so a 10-20k-token report is never resent over HTTP. `follow_up()` /
+  `followUp()` in both SDKs; `context_job_ids` on the MCP `deep_research` tool.
+
+  Deliberately explicit rather than a server-side conversation: the caller's
+  agent framework or app already owns the thread, and a second memory here would
+  be a second source of truth. Up to 5 jobs, capped by `MAX_CONTEXT_CHARACTERS`
+  (default 24,000); oldest context is dropped first, and
+  `result.context_used[].truncated` records it. A missing, unfinished or empty
+  referenced job is a `422` rather than a silent run without the context asked
+  for.
+
+- **`result.truncated`.** True when a run hit the model's context limit and the
+  report is built on partial findings. The job still succeeds, so callers must
+  check it; the MCP server also warns the agent inline.
+
+### Fixed
+
+Three context-management defects in the vendored graph, all of which degraded a
+run silently instead of failing it (`NOTICE`, patches e-g):
+
+- The supervisor's error handler read `if is_token_limit_exceeded(...) or True:`.
+  The `or True` made the test dead code, so any exception ended research and
+  returned partial notes. Now only a real context overflow degrades; other errors
+  propagate and the job fails visibly.
+- Context windows came from a substring-matched table returning `None` for every
+  OpenRouter slug and for Groq, Gemini and DeepSeek -- 5 of 7 providers. On
+  overflow that made the *report body* an error string telling the user to edit
+  `utils.py`. The window is now supplied per request from the provider registry.
+- Truncation was invisible to callers. See `result.truncated` above.
+
+### Changed
+
+- 135 tests, up from 101.
+
 ## [1.0.1] - 2026-08-18
 
 ### Added
@@ -105,5 +145,6 @@ Three defects in the upstream code this project vendors, all marked
 - A job in flight when its own replica dies is lost. Retry from the client using
   `idempotency_key`.
 
+[1.1.0]: https://github.com/absalem42/deep-research-api/releases/tag/v1.1.0
 [1.0.1]: https://github.com/absalem42/deep-research-api/releases/tag/v1.0.1
 [1.0.0]: https://github.com/absalem42/deep-research-api/releases/tag/v1.0.0

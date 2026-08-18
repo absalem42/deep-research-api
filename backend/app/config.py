@@ -60,6 +60,10 @@ class Settings(BaseSettings):
     max_concurrent_research_units: int = 3
     max_structured_output_retries: int = 2
     research_timeout_seconds: int = 900
+    # Total characters of prior-report context admitted per run (~4 chars/token).
+    # Prior context competes with findings for the same window, so it is capped
+    # rather than allowed to crowd out the actual research.
+    max_context_characters: int = 24_000
 
     # ---- job engine ----------------------------------------------------
     job_backend: Literal["memory", "redis"] = "memory"

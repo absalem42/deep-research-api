@@ -103,3 +103,32 @@ def test_mcp_sdk_major_is_pinned():
     assert major == 1, (
         f"mcp {metadata.version('mcp')} installed; mcp_server/server.py targets the 1.x API"
     )
+
+
+class TestFollowUpSupport:
+    async def test_deep_research_accepts_context_job_ids(self):
+        by_name = {t.name: t for t in await list_tools()}
+        schema = by_name["deep_research"].inputSchema["properties"]
+        assert "context_job_ids" in schema
+        assert schema["context_job_ids"]["maxItems"] == 5
+
+    def test_truncated_report_is_flagged_to_the_agent(self):
+        """Without this an agent presents a partial report as the final answer."""
+        out = _render(
+            {
+                "id": "j",
+                "status": "succeeded",
+                "result": {"report_markdown": "# Partial", "sources": [], "truncated": True},
+            }
+        )
+        assert "context limit" in out
+
+    def test_complete_report_carries_no_warning(self):
+        out = _render(
+            {
+                "id": "j",
+                "status": "succeeded",
+                "result": {"report_markdown": "# Full", "sources": [], "truncated": False},
+            }
+        )
+        assert "context limit" not in out

@@ -278,7 +278,7 @@ class TestMultiReplica:
                 spec = get_provider(options.provider or "anthropic")
                 return spec, spec.default_model, "tavily"
 
-            async def stream(self, query, options, job_id, cancel_event=None):
+            async def stream(self, query, options, job_id, cancel_event=None, prior_context=None):
                 yield Event(
                     type=EventType.STAGE_START,
                     job_id=job_id,

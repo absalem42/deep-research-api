@@ -6,7 +6,7 @@
   <a href="https://github.com/absalem42/deep-research-api/actions/workflows/ci.yml"><img src="https://github.com/absalem42/deep-research-api/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/python-3.11%2B-blue.svg" alt="Python 3.11+">
-  <img src="https://img.shields.io/badge/tests-101-brightgreen.svg" alt="101 tests">
+  <img src="https://img.shields.io/badge/tests-135-brightgreen.svg" alt="135 tests">
 </p>
 
 
@@ -96,7 +96,7 @@ you can put behind a domain. Concretely, what changed:
 | SSE only; a dropped connection loses the run | Job model: poll, stream, or signed webhook |
 | Metrics fall back to in-memory silently | Documented; retention + eviction are explicit |
 | Container runs as root, deps reinstalled on every code edit | Non-root, multi-stage, cached dependency layer |
-| No tests around the API surface | 101 tests covering auth, config guards, providers, jobs, usage, MCP, multi-replica Redis |
+| No tests around the API surface | 135 tests covering auth, providers, jobs, usage, context handling, follow-ups, MCP, multi-replica Redis |
 | 3 hardcoded providers | Data-driven registry: Anthropic, OpenAI, Moonshot, OpenRouter, Groq, Gemini, DeepSeek |
 
 ## Quick start
@@ -182,6 +182,55 @@ Heartbeats every 15s stop proxies dropping the connection.
 
 `idempotency_key` makes retries safe — replaying a key returns the original job
 instead of paying for the research twice.
+
+## Follow-up questions
+
+Pass the ids of earlier runs and their reports become prior context:
+
+```json
+{ "query": "expand on the pricing section", "context_job_ids": ["job_3f8a..."] }
+```
+
+The service loads those reports from its own store, so **you never resend a
+10–20k-token report over HTTP**.
+
+Deliberately explicit rather than a server-side conversation. Your agent
+framework or your app already owns the thread; a second memory here would be a
+second source of truth that disagrees with yours, and you would lose control
+over what context a run actually used. Naming the jobs keeps that decision where
+it belongs.
+
+```python
+first = client.research("compare vector databases for a 10M-doc corpus")
+more  = client.follow_up(first, "expand on the pricing section")
+```
+
+```typescript
+const first = await client.research("compare vector databases");
+const more  = await client.followUp(first, "expand on the pricing section");
+```
+
+Notes on behaviour:
+
+- Up to 5 context jobs, capped at `MAX_CONTEXT_CHARACTERS` (default 24,000)
+  total. Prior context competes with live findings for the same window, so it is
+  bounded rather than allowed to crowd out the research.
+- Over budget, the **oldest** context is dropped first, and
+  `result.context_used[].truncated` says so.
+- A referenced job that is missing, unfinished, or has an empty report is a
+  `422` — rejected up front rather than silently researched without the context
+  you asked for.
+
+## Knowing when a report is incomplete
+
+`result.truncated` is `true` when the run hit the model's context limit and the
+report is built on partial findings. The job still **succeeds** — check the flag
+before treating a report as complete.
+
+This exists because the upstream graph degraded silently here: any exception in
+the supervisor ended research early and returned whatever notes existed, with
+nothing to distinguish a thin report from a finished one. See [NOTICE](NOTICE),
+patches (e)–(g).
 
 ## Verifying webhooks
 
@@ -280,7 +329,7 @@ python -c "import secrets; print('whsec_'+secrets.token_urlsafe(32))" # webhook 
 cd backend && .venv/Scripts/python -m pytest
 ```
 
-Tests stub the graph, so they are fast and need no API keys or network. 101 tests.
+Tests stub the graph, so they are fast and need no API keys or network. 135 tests.
 
 ## Deploying
 
