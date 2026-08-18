@@ -1,8 +1,19 @@
-# Deep Research API
+<p align="center">
+  <img src="assets/logo.svg" alt="Deep Research API" width="440">
+</p>
 
+<p align="center">
+  <a href="https://github.com/absalem42/deep-research-api/actions/workflows/ci.yml"><img src="https://github.com/absalem42/deep-research-api/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
+  <img src="https://img.shields.io/badge/python-3.11%2B-blue.svg" alt="Python 3.11+">
+  <img src="https://img.shields.io/badge/tests-89-brightgreen.svg" alt="89 tests">
+</p>
+
+!--
 [![CI](https://github.com/absalem42/deep-research-api/actions/workflows/ci.yml/badge.svg)](https://github.com/absalem42/deep-research-api/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+-->
 
 **Add ChatGPT-style deep research to your agent or your product.**
 
@@ -366,15 +377,48 @@ Issues and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md)
 for setup and conventions. Security issues should go through
 [SECURITY.md](SECURITY.md) rather than a public issue.
 
-## Licence and attribution
+## What is original here, and what is not
 
-MIT — see [LICENSE](LICENSE).
+Being precise about this, because "built on" can mean anything.
 
-This project vendors and adapts MIT-licensed work by others. Their copyright
-notices and the specific modifications made are recorded in [NOTICE](NOTICE):
+**The research brain is not ours.** The multi-agent graph — clarifier,
+supervisor, researchers, compression, report generation, and the prompts that
+drive them — is LangChain's
+[open_deep_research](https://github.com/langchain-ai/open_deep_research),
+vendored under `backend/vendor/` (~2,500 lines). We changed four things in it,
+each marked `PATCH(deep-research)` and listed in [NOTICE](NOTICE); three of
+those were bug fixes.
 
-- [langchain-ai/open_deep_research](https://github.com/langchain-ai/open_deep_research) — the research graph
-- [ShenSeanChen/launch-DeepResearch-Backend](https://github.com/ShenSeanChen/launch-DeepResearch-Backend) and [-Frontend](https://github.com/ShenSeanChen/launch-DeepResearch-Frontend) — the system design and UI this adapts
+**The service around it is ours.** Roughly 4,900 lines: the job engine, provider
+registry, authentication, signed webhooks, Redis backend, event normalisation,
+MCP server, both client SDKs, and the whole test suite.
 
-If this is useful to you, the original [walkthrough
+**The UI is shared.** The React shell, styling and Google Docs export are Sean
+Chen's, from
+[launch-DeepResearch-Frontend](https://github.com/ShenSeanChen/launch-DeepResearch-Frontend)
+(~1,700 lines kept). The data layer underneath it is ours (~800 lines): the API
+client, the `useResearch` hook, the server-side proxy, and a rewritten model
+comparison tab.
+
+| | Lines | Source |
+|---|---:|---|
+| Research graph | ~2,500 | LangChain, MIT — vendored, 4 marked patches |
+| Backend service | ~2,460 | Original |
+| Tests | ~1,020 | Original |
+| Client SDKs | ~600 | Original |
+| Frontend data layer | ~790 | Original |
+| Frontend UI shell | ~1,720 | Sean Chen, MIT — adapted |
+
+So: a little over half the code is original, and the half that is not is the
+part that would be foolish to rewrite. The contribution is turning a research
+*agent* into a research *service* — jobs, auth, webhooks, multi-provider,
+multi-replica — plus fixing three real bugs found on the way.
+
+## Licence
+
+MIT — see [LICENSE](LICENSE). All upstream components are MIT; their copyright
+notices are retained as that requires, in [NOTICE](NOTICE) and in
+`backend/vendor/open_deep_research/LICENSE`.
+
+If this is useful to you, Sean's original [walkthrough
 video](https://www.youtube.com/watch?v=dw9Vkig47S0) is worth your time.
