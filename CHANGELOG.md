@@ -4,6 +4,34 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-08-18
+
+### Added
+
+- Logo and square icon (`assets/`), used in the README header.
+- "What is original here, and what is not" section in the README: a line-count
+  breakdown of which code is vendored from LangChain, which is adapted from
+  Sean Chen's frontend, and which is original.
+- 12 tests for the MCP server. Nothing imported `mcp_server`, so CI could not
+  catch a break there.
+
+### Fixed
+
+- Pinned `mcp>=1.9.4,<2.0.0`. mcp 2.x removes `Server.list_tools`, breaking
+  `mcp_server/server.py` at import, and `langchain-mcp-adapters` pins `<2.0.0`
+  independently. A green Dependabot PR proposing 2.0.0 would have merged
+  silently.
+- Lint now covers `mcp_server/`, which was unchecked.
+- Bumped CI actions past the Node 20 deprecation.
+
+### Changed
+
+- Dependency updates across backend, frontend and SDK, all verified by CI on
+  Python 3.11/3.12/3.13.
+- Dependabot tuned: minor/patch grouped into one PR per ecosystem, majors
+  ignored for typescript/eslint/next/react. Going public opened 18 PRs in an
+  hour, two already failing.
+
 ## [1.0.0] - 2026-08-18
 
 First release. A production deep-research agent service built around a job model
@@ -77,4 +105,5 @@ Three defects in the upstream code this project vendors, all marked
 - A job in flight when its own replica dies is lost. Retry from the client using
   `idempotency_key`.
 
+[1.0.1]: https://github.com/absalem42/deep-research-api/releases/tag/v1.0.1
 [1.0.0]: https://github.com/absalem42/deep-research-api/releases/tag/v1.0.0

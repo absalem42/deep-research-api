@@ -6,7 +6,7 @@
   <a href="https://github.com/absalem42/deep-research-api/actions/workflows/ci.yml"><img src="https://github.com/absalem42/deep-research-api/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/python-3.11%2B-blue.svg" alt="Python 3.11+">
-  <img src="https://img.shields.io/badge/tests-89-brightgreen.svg" alt="89 tests">
+  <img src="https://img.shields.io/badge/tests-101-brightgreen.svg" alt="101 tests">
 </p>
 
 
@@ -96,7 +96,7 @@ you can put behind a domain. Concretely, what changed:
 | SSE only; a dropped connection loses the run | Job model: poll, stream, or signed webhook |
 | Metrics fall back to in-memory silently | Documented; retention + eviction are explicit |
 | Container runs as root, deps reinstalled on every code edit | Non-root, multi-stage, cached dependency layer |
-| No tests around the API surface | 89 tests covering auth, config guards, providers, jobs, usage, multi-replica Redis |
+| No tests around the API surface | 101 tests covering auth, config guards, providers, jobs, usage, MCP, multi-replica Redis |
 | 3 hardcoded providers | Data-driven registry: Anthropic, OpenAI, Moonshot, OpenRouter, Groq, Gemini, DeepSeek |
 
 ## Quick start
@@ -280,7 +280,7 @@ python -c "import secrets; print('whsec_'+secrets.token_urlsafe(32))" # webhook 
 cd backend && .venv/Scripts/python -m pytest
 ```
 
-Tests stub the graph, so they are fast and need no API keys or network. 89 tests.
+Tests stub the graph, so they are fast and need no API keys or network. 101 tests.
 
 ## Deploying
 
