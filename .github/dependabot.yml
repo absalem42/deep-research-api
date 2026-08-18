@@ -1,39 +1,77 @@
 version: 2
 
-# Grouped so a quiet week produces one PR per ecosystem rather than a dozen.
+# Tuned to produce a handful of reviewable PRs a week, not a wall of them.
+#
+# Two rules do most of the work:
+#   * Everything minor/patch is grouped into ONE PR per ecosystem. Those are the
+#     updates you want applied in bulk and rarely need to reason about.
+#   * Major bumps of the toolchain are ignored. TypeScript and ESLint majors
+#     land breaking changes on a schedule that has nothing to do with this
+#     project, and both opened red PRs within an hour of the repo going public.
+#     Upgrade those deliberately, not because a bot asked.
 updates:
   - package-ecosystem: pip
     directory: /backend
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
     groups:
+      backend-minor:
+        update-types: [minor, patch]
       langchain:
         patterns: ["langchain*", "langgraph*"]
-      dev-dependencies:
-        patterns: ["pytest*", "ruff", "fakeredis"]
+        update-types: [minor, patch]
 
   - package-ecosystem: npm
     directory: /frontend
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
     groups:
-      next:
-        patterns: ["next", "react", "react-dom", "@types/react*"]
+      frontend-minor:
+        update-types: [minor, patch]
+    ignore:
+      # Framework and toolchain majors: upgrade on purpose.
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
+      - dependency-name: eslint
+        update-types: [version-update:semver-major]
+      - dependency-name: eslint-config-next
+        update-types: [version-update:semver-major]
+      - dependency-name: next
+        update-types: [version-update:semver-major]
+      - dependency-name: react
+        update-types: [version-update:semver-major]
+      - dependency-name: react-dom
+        update-types: [version-update:semver-major]
 
   - package-ecosystem: npm
     directory: /clients/typescript
     schedule:
-      interval: weekly
-    open-pull-requests-limit: 3
+      interval: monthly
+    open-pull-requests-limit: 2
+    groups:
+      sdk-minor:
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
 
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
+    open-pull-requests-limit: 2
+    groups:
+      actions:
+        patterns: ["*"]
 
   - package-ecosystem: docker
     directory: /backend
     schedule:
       interval: monthly
+    open-pull-requests-limit: 1
+    ignore:
+      # The Dockerfile pins 3.12-slim deliberately; CI proves 3.11-3.13 work.
+      - dependency-name: python
+        update-types: [version-update:semver-major, version-update:semver-minor]
