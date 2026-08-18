@@ -151,6 +151,14 @@ class Usage(BaseModel):
 
 class ResearchResult(BaseModel):
     report_markdown: str = ""
+    truncated: bool = Field(
+        default=False,
+        description=(
+            "True when the run hit the model's context limit and the report is "
+            "based on partial findings. The job still succeeds -- check this "
+            "before treating the report as complete."
+        ),
+    )
     research_brief: str | None = None
     sources: list[Source] = Field(default_factory=list)
     stage_timings: list[StageTiming] = Field(default_factory=list)

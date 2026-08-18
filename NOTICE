@@ -35,6 +35,22 @@ comments. They are:
   d) utils.py -- `get_tavily_api_key()` now prefers the per-request config over
      the ambient environment.
 
+  e) deep_researcher.py -- the supervisor's error handler read
+     `if is_token_limit_exceeded(...) or True:`. The `or True` made the test dead
+     code, so ANY exception ended the research phase and returned partial notes,
+     with nothing to tell the caller the run had been cut short. Now only a
+     genuine context overflow degrades (and sets `context_truncated`); other
+     errors propagate.
+
+  f) configuration.py / deep_researcher.py -- added `model_context_window`,
+     supplied per request. Upstream resolved the window from a substring-matched
+     `MODEL_TOKEN_LIMITS` table that returns None for every OpenRouter slug and
+     for Groq, Gemini and DeepSeek. On a context overflow that made the *report
+     body* an error string asking the user to edit utils.py.
+
+  g) state.py -- added `context_truncated` to `SupervisorState` so (e) can be
+     surfaced through the API.
+
 ================================================================================
 2. launch-DeepResearch-Backend / launch-DeepResearch-Frontend
 ================================================================================

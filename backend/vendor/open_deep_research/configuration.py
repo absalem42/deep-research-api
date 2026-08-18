@@ -65,6 +65,22 @@ class Configuration(BaseModel):
         }
     )
 
+    # PATCH(deep-research): the model's context window, supplied per request from
+    # app/providers.py. Upstream looked this up in a hardcoded MODEL_TOKEN_LIMITS
+    # table by substring match, which returned None for every OpenRouter slug and
+    # for Groq/Gemini/DeepSeek -- and on a context overflow that made the *report
+    # body* an error string telling the user to go edit utils.py.
+    model_context_window: Optional[int] = Field(
+        default=None,
+        metadata={
+            "x_oap_ui_config": {
+                "type": "number",
+                "default": None,
+                "description": "Context window of the configured model, in tokens"
+            }
+        }
+    )
+
     # PATCH(deep-research): search credential passed through config instead of
     # being read from the ambient environment.
     tavily_api_key: str = Field(

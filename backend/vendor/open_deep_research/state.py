@@ -79,6 +79,9 @@ class SupervisorState(TypedDict):
     notes: Annotated[list[str], override_reducer] = []
     research_iterations: int = 0
     raw_notes: Annotated[list[str], override_reducer] = []
+    # PATCH(deep-research): set when the supervisor hits the context limit, so the
+    # API can mark the report partial instead of passing off a thin one as complete.
+    context_truncated: bool = False
 
 class ResearcherState(TypedDict):
     """State for individual researchers conducting research."""

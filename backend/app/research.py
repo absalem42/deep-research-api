@@ -127,6 +127,10 @@ class DeepResearchEngine:
             # credentials + endpoint, per request
             "user_api_key": api_key,
             "model_base_url": spec.base_url,
+            # The registry knows every provider's window. Upstream looked this up
+            # in a substring-matched table that missed 5 of our 7 providers, and
+            # on overflow put an error string in the report body.
+            "model_context_window": spec.context_window,
             "tavily_api_key": s.tavily_api_key,
             # behaviour
             "search_api": search_api,
@@ -288,6 +292,19 @@ class DeepResearchEngine:
         if brief := payload.get("research_brief"):
             result.research_brief = str(brief)
             events.append(emit(EventType.THINKING, str(brief)[:2000]))
+
+        # The supervisor sets this when it hits the context limit and returns
+        # partial findings. Without it the caller cannot tell a thin report from a
+        # complete one.
+        if payload.get("context_truncated"):
+            result.truncated = True
+            events.append(
+                emit(
+                    EventType.THINKING,
+                    "Context limit reached; report is based on partial findings.",
+                    data={"truncated": True},
+                )
+            )
 
         if report := payload.get("final_report"):
             result.report_markdown = str(report)

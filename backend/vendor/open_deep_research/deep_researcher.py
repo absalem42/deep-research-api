@@ -1,6 +1,7 @@
 """Main LangGraph implementation for the Deep Research agent."""
 
 import asyncio
+import logging
 from typing import Literal
 
 from langchain.chat_models import init_chat_model
@@ -52,6 +53,8 @@ from open_deep_research.utils import (
     remove_up_to_last_ai_message,
     think_tool,
 )
+
+logger = logging.getLogger(__name__)
 
 # Initialize a configurable model that we will use throughout the agent
 configurable_model = init_chat_model(
@@ -357,16 +360,28 @@ async def supervisor_tools(state: SupervisorState, config: RunnableConfig) -> Co
                 update_payload["raw_notes"] = [raw_notes_concat]
                 
         except Exception as e:
-            # Handle research execution errors
-            if is_token_limit_exceeded(e, configurable.research_model) or True:
-                # Token limit exceeded or other error - end research phase
+            # PATCH(deep-research): upstream read `... or True`, which made the
+            # token-limit test dead code: ANY exception here ended the research
+            # phase and returned whatever partial notes existed. The caller got a
+            # thin report and no indication research had been cut short.
+            #
+            # Now only a genuine context overflow degrades gracefully (there is
+            # nothing better to do -- the findings will not fit). Everything else
+            # propagates so the job fails visibly and the caller can retry.
+            if is_token_limit_exceeded(e, configurable.research_model):
+                logger.warning(
+                    "supervisor hit the context limit; returning partial findings: %s", e
+                )
                 return Command(
                     goto=END,
                     update={
                         "notes": get_notes_from_tool_calls(supervisor_messages),
-                        "research_brief": state.get("research_brief", "")
+                        "research_brief": state.get("research_brief", ""),
+                        # surfaced to the API so the report can be marked partial
+                        "context_truncated": True,
                     }
                 )
+            raise
     
     # Step 3: Return command with all tool results
     update_payload["supervisor_messages"] = all_tool_messages
@@ -716,7 +731,14 @@ async def final_report_generation(state: AgentState, config: RunnableConfig):
                 
                 if current_retry == 1:
                     # First retry: determine initial truncation limit
-                    model_token_limit = get_model_token_limit(configurable.final_report_model)
+                    # PATCH(deep-research): trust the per-request window from
+                    # app/providers.py first. The upstream table is a substring
+                    # match that misses every OpenRouter slug plus Groq, Gemini
+                    # and DeepSeek -- 5 of 7 providers here.
+                    model_token_limit = (
+                        configurable.model_context_window
+                        or get_model_token_limit(configurable.final_report_model)
+                    )
                     if not model_token_limit:
                         return {
                             "final_report": f"Error generating final report: Token limit exceeded, however, we could not determine the model's maximum context length. Please update the model map in deep_researcher/utils.py with this information. {e}",
