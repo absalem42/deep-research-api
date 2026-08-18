@@ -8,6 +8,7 @@ one writes, the other sees.
 from __future__ import annotations
 
 import asyncio
+import os
 
 import pytest
 
@@ -18,11 +19,39 @@ from app.store import InMemoryJobStore, RedisJobStore
 fakeredis = pytest.importorskip("fakeredis")
 
 
-@pytest.fixture
-def redis():
-    from fakeredis import aioredis
+REDIS_URL = os.getenv("TEST_REDIS_URL")
 
-    return aioredis.FakeRedis(decode_responses=True)
+
+@pytest.fixture
+async def redis():
+    """A real Redis when TEST_REDIS_URL is set, otherwise fakeredis.
+
+    fakeredis is a good stand-in but it is still a reimplementation: pipelines,
+    pub/sub delivery timing and TTL semantics are exactly the areas where it can
+    diverge from the real server, and those are exactly what this backend leans
+    on. CI runs this suite both ways -- see the `redis-integration` job.
+    """
+    if REDIS_URL:
+        from redis.asyncio import Redis
+
+        client = Redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
+        await client.ping()
+        # Each test gets a clean keyspace; these tests assert on exact key state.
+        await client.flushdb()
+        try:
+            yield client
+        finally:
+            await client.flushdb()
+            await client.aclose()
+    else:
+        from fakeredis import aioredis
+
+        yield aioredis.FakeRedis(decode_responses=True)
+
+
+def test_which_redis_is_under_test():
+    """Prints the backend in use so a green run is not ambiguous."""
+    print(f"\nredis backend: {'REAL ' + REDIS_URL if REDIS_URL else 'fakeredis'}")
 
 
 @pytest.fixture

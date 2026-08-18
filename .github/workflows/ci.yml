@@ -47,6 +47,48 @@ jobs:
         # No API keys and no network: the research graph is stubbed.
         run: python -m pytest -q
 
+  redis-integration:
+    name: Redis (real server)
+    runs-on: ubuntu-latest
+
+    # The Redis backend is the one part that cannot be trusted to fakeredis
+    # alone: pipelines, pub/sub delivery and TTL semantics are reimplementations
+    # there, and they are exactly what this backend leans on. This job runs the
+    # same suite against the real server.
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Run the Redis suite against a real server
+        working-directory: backend
+        env:
+          TEST_REDIS_URL: redis://localhost:6379/0
+        # -s so the "redis backend: REAL ..." line is visible in the log; a green
+        # run should never be ambiguous about which backend it exercised.
+        run: python -m pytest tests/test_redis_backend.py -v -s
+
   frontend:
     name: Frontend
     runs-on: ubuntu-latest
