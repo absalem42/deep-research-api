@@ -40,7 +40,7 @@ jobs:
 
       - name: Lint
         working-directory: backend
-        run: ruff check app tests
+        run: ruff check app tests mcp_server
 
       - name: Test
         working-directory: backend
