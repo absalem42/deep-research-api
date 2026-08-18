@@ -9,11 +9,6 @@
   <img src="https://img.shields.io/badge/tests-89-brightgreen.svg" alt="89 tests">
 </p>
 
-!--
-[![CI](https://github.com/absalem42/deep-research-api/actions/workflows/ci.yml/badge.svg)](https://github.com/absalem42/deep-research-api/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
--->
 
 **Add ChatGPT-style deep research to your agent or your product.**
 
