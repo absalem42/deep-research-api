@@ -18,7 +18,7 @@ langchain-mcp-adapters>=0.1.6
 mcp>=1.9.4,<2.0.0
 
 # --- providers (each optional at runtime; import is lazy) ---
-langchain-openai>=0.3.28
+langchain-openai>=1.6.0
 langchain-anthropic>=0.3.15
 langchain-groq>=0.2.4
 langchain-google-genai>=2.0.0
