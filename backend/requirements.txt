@@ -19,7 +19,7 @@ mcp>=1.9.4,<2.0.0
 
 # --- providers (each optional at runtime; import is lazy) ---
 langchain-openai>=0.3.28
-langchain-anthropic>=0.3.15
+langchain-anthropic>=1.6.1
 langchain-groq>=0.2.4
 langchain-google-genai>=2.0.0
 langchain-deepseek>=0.1.2
